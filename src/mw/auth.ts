@@ -1,5 +1,9 @@
-import type { Request, Response, NextFunction } from 'express';
 import { verifyAccess } from '../auth/tokens';
+import { Request, Response, NextFunction } from 'express';
+export interface AuthedRequest extends Request {
+  userId?: string;
+}
+
 export interface AuthedRequest extends Request { userId?: string }
 export function auth(){
   return (req:AuthedRequest,res:Response,next:NextFunction)=>{
