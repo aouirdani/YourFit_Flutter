@@ -1,28 +1,19 @@
-FROM node:18-alpine
-
+FROM node:20-alpine AS builder
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
-COPY prisma ./prisma/
-
-# Install ALL dependencies (including dev for Prisma)
 RUN npm ci
-
-# Generate Prisma Client
+COPY prisma ./prisma/
 RUN npx prisma generate
-
-# Copy all application files
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Remove dev dependencies after build
-RUN npm prune --production
-
-# Expose the port
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY prisma ./prisma/
+RUN npx prisma generate
+COPY --from=builder /app/dist ./dist
 EXPOSE 3000
-
-# Start the application
-CMD ["npm", "start"]
+CMD ["node","dist/index.js"]
