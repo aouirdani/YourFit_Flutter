@@ -1,28 +1,36 @@
 # ---------- builder ----------
 FROM node:20-bookworm-slim AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
 
+# 1) Dépendances pour builder (sans scripts pour éviter un postinstall précoce)
+COPY package*.json ./
+RUN npm ci --ignore-scripts
+
+# 2) Prisma schema + OpenSSL + generate (client côté build)
 COPY prisma ./prisma/
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 RUN npx prisma generate
 
+# 3) Sources + build TS -> dist
 COPY . .
 RUN npm run build
 
-# ---------- runner ----------
+# ---------- runner (prod) ----------
 FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/node_modules ./node_modules
-RUN npm prune --omit=dev
-COPY prisma ./prisma/
-RUN npx prisma generate
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package*.json ./
-EXPOSE 3000
-CMD ["node","dist/index.js"]
 
-COPY --from=builder /app/node_modules ./node_modules
-RUN npm prune --omit=dev
+# 4) Installer **uniquement** les deps prod
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# 5) Prisma schema + OpenSSL + generate (lié aux deps prod)
+COPY prisma ./prisma/
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN npx prisma generate
+
+# 6) Artefacts
+COPY --from=builder /app/dist ./dist
+
+EXPOSE 3000
+CMD ["node", "dist/index.js"]
