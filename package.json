@@ -3,7 +3,6 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p .",
     "start": "node dist/index.js",
-    "postinstall": "prisma generate",
     "migrate:deploy": "prisma migrate deploy"
   },
   "engines": { "node": ">=18" },
